@@ -1,68 +1,31 @@
 package me.bitfrom.greetings.api;
 
 import me.bitfrom.greetings.model.Greeting;
-import org.jetbrains.annotations.Nullable;
+import me.bitfrom.greetings.service.GreetingService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigInteger;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 public class GreetingController {
 
-    private static BigInteger nextId;
-    private static Map<BigInteger, Greeting> greetingMap;
+    private final GreetingService greetingService;
 
-    @Nullable
-    private static Greeting save(Greeting greeting) {
-        if (greetingMap == null) {
-            greetingMap = new HashMap<BigInteger, Greeting>();
-            nextId = BigInteger.ONE;
-        }
-        //Update
-        if (greeting.getId() != null) {
-            Greeting oldGreeting = greetingMap.get(greeting.getId());
-            if (oldGreeting == null) {
-                return null;
-            }
-            greetingMap.remove(greeting.getId());
-            greetingMap.put(greeting.getId(), greeting);
-            return greeting;
-        }
-        //Create
-        greeting.setId(nextId);
-        nextId = nextId.add(BigInteger.ONE);
-        greetingMap.put(greeting.getId(), greeting);
-        return greeting;
+    @Autowired
+    public GreetingController(GreetingService greetingService) {
+        this.greetingService = greetingService;
     }
-
-    private static boolean delete(BigInteger id) {
-        Greeting deletedGreeting = greetingMap.remove(id);
-        return deletedGreeting != null;
-    }
-
-    static {
-        Greeting g1 = new Greeting();
-        g1.setText("Hello world!");
-        save(g1);
-
-        Greeting g2 = new Greeting();
-        g2.setText("Spring Boot!");
-        save(g2);
-    }
-
 
     @RequestMapping(
             value = "/api/greetings",
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Collection<Greeting>> getGreetings() {
-        Collection<Greeting> greetings = greetingMap.values();
+        Collection<Greeting> greetings = greetingService.findAll();
 
         return new ResponseEntity<Collection<Greeting>>(greetings, HttpStatus.OK);
     }
@@ -71,8 +34,8 @@ public class GreetingController {
             value = "/api/greetings/{id}",
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Greeting> getGreeting(@PathVariable("id") BigInteger id) {
-        Greeting greeting = greetingMap.get(id);
+    public ResponseEntity<Greeting> getGreeting(@PathVariable("id") Long id) {
+        Greeting greeting = greetingService.findOne(id);
         if (greeting == null) return new ResponseEntity<Greeting>(HttpStatus.NOT_FOUND);
 
         return new ResponseEntity<Greeting>(greeting, HttpStatus.OK);
@@ -85,7 +48,7 @@ public class GreetingController {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public ResponseEntity<Greeting> createGreeting(@RequestBody Greeting greeting) {
-        Greeting savedGreeting = save(greeting);
+        Greeting savedGreeting = greetingService.create(greeting);
         return new ResponseEntity<Greeting>(savedGreeting, HttpStatus.CREATED);
     }
 
@@ -96,7 +59,7 @@ public class GreetingController {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public ResponseEntity<Greeting> updateGreeting(@RequestBody Greeting greeting) {
-        Greeting updatedGreeting = save(greeting);
+        Greeting updatedGreeting = greetingService.update(greeting);
         if (updatedGreeting == null) {
             return new ResponseEntity<Greeting>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -109,10 +72,9 @@ public class GreetingController {
             method = RequestMethod.DELETE,
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
-    public ResponseEntity<Greeting> deleteGreeting(@PathVariable("id") BigInteger id,
+    public ResponseEntity<Greeting> deleteGreeting(@PathVariable("id") Long id,
                                                    @RequestBody Greeting greeting) {
-        boolean deleted = delete(id);
-        if (!deleted) return new ResponseEntity<Greeting>(HttpStatus.INTERNAL_SERVER_ERROR);
+        greetingService.delete(id);
         return new ResponseEntity<Greeting>(HttpStatus.NO_CONTENT);
     }
 }
